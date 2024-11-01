@@ -40,6 +40,9 @@ usage() {
   echo
   echo "  5. Switch Kubernetes environment:"
   echo "     $0 -m switch-env"
+  echo
+  echo "  6. Verify Env:"
+  echo "     $0 -m verify-env"
   exit 1
 }
 
@@ -91,10 +94,19 @@ switch_env() {
   echo "Switched to environment: $(basename "$SELECTED_ENV_FILE")"
 }
 
+verify-env(){
+  echo "The current Environment is $(cat ~/.kube/config | grep -i current-context | awk '{print $2}')"  
+}
+
 # Perform operations based on the mode
 case $MODE in
   switch-env)
     switch_env
+    exit 0
+    ;;
+
+  verify-env)
+    verify-env
     exit 0
     ;;
 esac
@@ -105,7 +117,7 @@ if [ "$MODE" != "switch-env" ] && ([ -z "$APP_NAME" ] || [ -z "$MODE" ]); then
 fi
 
 # Validate mode (bash, rails, get-env, set-env, get-secret)
-if [ "$MODE" != "bash" ] && [ "$MODE" != "rails" ] && [ "$MODE" != "get-secret" ] && [ "$MODE" != "set-secret" ] && [ "$MODE" != "switch-env" ] && [ "$MODE" != "get-branch" ]; then
+if [ "$MODE" != "bash" ] && [ "$MODE" != "rails" ] && [ "$MODE" != "get-secret" ] && [ "$MODE" != "set-secret" ] && [ "$MODE" != "switch-env" ] && [ "$MODE" != "get-branch" ] && [ "$MODE" != "verify-env" ]; then
   echo "Error: Invalid mode '$MODE'. Valid modes are 'bash', 'rails', 'get-env', 'set-env', 'get-secret', or 'switch-env'."
   usage
 fi
