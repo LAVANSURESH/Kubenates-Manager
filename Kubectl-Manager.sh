@@ -32,17 +32,21 @@ usage() {
   echo "  2. Open a Rails console in the app pod:"
   echo "     $0 -a my-app -m rails"
   echo
-  echo "  3. Fetch a secret from Kubernetes Secrets:"
+  echo "  4. Postgresql Login:"
+  echo "     $0 -a my-app -m postgres-login"
+  echo
+  echo "  5. Fetch a secret from Kubernetes Secrets:"
   echo "     $0 -a my-app -m get-secret -e SECRET_KEY_BASE"
   echo
-  echo "  4. Set a secret in Kubernetes Secrets:"
+  echo "  6. Set a secret in Kubernetes Secrets:"
   echo "     $0 -a my-app -m set-secret -e SECRET_KEY_BASE -v new_secret_value"
   echo
-  echo "  5. Switch Kubernetes environment:"
+  echo "  7. Switch Kubernetes environment:"
   echo "     $0 -m switch-env"
   echo
-  echo "  6. Verify Env:"
+  echo "  8. Verify Env:"
   echo "     $0 -m verify-env"
+ 
   exit 1
 }
 
@@ -92,7 +96,7 @@ switch_env() {
   echo $KUBECONFIG
   cp $(echo $KUBECONFIG) ~/.kube/config
   echo "Switched to environment: $(basename "$SELECTED_ENV_FILE")"
-}
+} 
 
 verify-env(){
   echo "The current Environment is $(cat ~/.kube/config | grep -i current-context | awk '{print $2}')"  
@@ -117,7 +121,7 @@ if [ "$MODE" != "switch-env" ] && ([ -z "$APP_NAME" ] || [ -z "$MODE" ]); then
 fi
 
 # Validate mode (bash, rails, get-env, set-env, get-secret)
-if [ "$MODE" != "bash" ] && [ "$MODE" != "rails" ] && [ "$MODE" != "get-secret" ] && [ "$MODE" != "set-secret" ] && [ "$MODE" != "switch-env" ] && [ "$MODE" != "get-branch" ] && [ "$MODE" != "verify-env" ]; then
+if [ "$MODE" != "bash" ] && [ "$MODE" != "rails" ] && [ "$MODE" != "get-secret" ] && [ "$MODE" != "set-secret" ] && [ "$MODE" != "switch-env" ] && [ "$MODE" != "get-branch" ] && [ "$MODE" != "verify-env" ] && [ "$MODE" != "postgres-login" ]; then
   echo "Error: Invalid mode '$MODE'. Valid modes are 'bash', 'rails', 'get-env', 'set-env', 'get-secret', or 'switch-env'."
   usage
 fi
@@ -184,8 +188,42 @@ case $MODE in
 
     echo "Deployed branch: $BRANCH_NAME"
     ;;
-  
+
+  postgres-login)
+    echo "Fetching Database url"
+    if [ -z "$APP_NAME" ]; then
+      echo "Application name (-a <app-name>) is required for postgres-login."
+      exit 1
+    fi
+
+    # Attempt to get DATABASE_URL using the get-secret keyword
+    DATABASE_URL=$(kubectl get secret "$APP_NAME-db-url" -n "$NAMESPACE" -o jsonpath="{.data.DATABASE_URL}" 2>/dev/null | base64 --decode)
+
+    # If DATABASE_URL is empty, fall back to fetching it from the environment in the container
+    if [ -z "$DATABASE_URL" ]; then
+      # Find the first pod for the app in the specified namespace
+      POD_NAME=$(kubectl get pods -n "$NAMESPACE" -l app="$APP_NAME" -o jsonpath="{.items[0].metadata.name}")
+
+      echo "Fetching DATABASE_URL from environment within pod $POD_NAME..."
+      DATABASE_URL=$(kubectl exec "$POD_NAME" -n "$NAMESPACE" -- printenv DATABASE_URL)
+
+      if [ -z "$DATABASE_URL" ]; then
+        echo "Error: DATABASE_URL not found in either secrets or container environment."
+        exit 1
+      fi
+    fi
+
+    echo "Database URL: ${DATABASE_URL}"
+    
+    # Login into the postgresql
+    
+    kubectl exec -it "$POD_NAME" -n "$NAMESPACE" --     env DATABASE_URL="$DATABASE_URL" psql "$DATABASE_URL"
+
+  ;;
+
   *)
+
     usage
     ;;
 esac
+
