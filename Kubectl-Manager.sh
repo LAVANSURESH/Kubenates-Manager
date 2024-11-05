@@ -32,19 +32,19 @@ usage() {
   echo "  2. Open a Rails console in the app pod:"
   echo "     $0 -a my-app -m rails"
   echo
-  echo "  4. Postgresql Login:"
+  echo "  3. Postgresql Login:"
   echo "     $0 -a my-app -m postgres-login"
   echo
-  echo "  5. Fetch a secret from Kubernetes Secrets:"
+  echo "  4. Fetch a secret from Kubernetes Secrets:"
   echo "     $0 -a my-app -m get-secret -e SECRET_KEY_BASE"
   echo
-  echo "  6. Set a secret in Kubernetes Secrets:"
+  echo "  5. Set a secret in Kubernetes Secrets:"
   echo "     $0 -a my-app -m set-secret -e SECRET_KEY_BASE -v new_secret_value"
   echo
-  echo "  7. Switch Kubernetes environment:"
+  echo "  6. Switch Kubernetes environment:"
   echo "     $0 -m switch-env"
   echo
-  echo "  8. Verify Env:"
+  echo "  7. Verify Env:"
   echo "     $0 -m verify-env"
  
   exit 1
