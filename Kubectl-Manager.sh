@@ -190,7 +190,6 @@ case $MODE in
     ;;
 
   postgres-login)
-    echo "Fetching Database url"
     if [ -z "$APP_NAME" ]; then
       echo "Application name (-a <app-name>) is required for postgres-login."
       exit 1
