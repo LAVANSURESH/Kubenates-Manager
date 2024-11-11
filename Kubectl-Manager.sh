@@ -15,12 +15,14 @@ usage() {
   echo "Options:"
   echo "  -a <app-name>       : The application name (required, except for switch-env mode)."
   echo "  -n <namespace>      : The Kubernetes namespace (optional, default: $NAMESPACE)."
-  echo "  -m <bash|rails|set-secret|get-secret|switch-env>  : The mode to run (required):"
+  echo "  -m <bash|rails|set-secret|get-secret|switch-env|get-branch|postgres-login>  : The mode to run (required):"
   echo "                         bash: Opens a bash session inside the app's pod."
   echo "                         rails: Opens the Rails console inside the app's pod."
   echo "                         get-secret: Fetches a secret from Kubernetes Secrets."
   echo "                         set-secret: Sets or updates a secret in Kubernetes Secrets."
   echo "                         switch-env: Switches between Kubernetes YAML environments."
+  echo "                         get-branch: Get the deployed branch for application."
+  echo "                         postgres-login: Login to postgres db of the application."
   echo "  -e <env-var>        : The environment variable name (required for get-env, set-env, and get-secret modes)."
   echo "  -v <value>          : The value to set for the environment variable (required for set-env and set-secret modes)."
   echo "  --help              : Display this help message."
@@ -190,34 +192,35 @@ case $MODE in
     ;;
 
   postgres-login)
-    if [ -z "$APP_NAME" ]; then
-      echo "Application name (-a <app-name>) is required for postgres-login."
-      exit 1
-    fi
+  if [ -z "$APP_NAME" ]; then
+    echo "Application name (-a <app-name>) is required for postgres-login."
+    exit 1
+  fi
 
-    # Attempt to get DATABASE_URL using the get-secret keyword
-    DATABASE_URL=$(kubectl get secret "$APP_NAME-db-url" -n "$NAMESPACE" -o jsonpath="{.data.DATABASE_URL}" 2>/dev/null | base64 --decode)
+  # Attempt to get DATABASE_URL using the get-secret keyword
+  DATABASE_URL=$(kubectl get secret "$APP_NAME" -n "$NAMESPACE" -o jsonpath="{.data.DATABASE_URL}" 2>/dev/null | base64 --decode)
 
-    # If DATABASE_URL is empty, fall back to fetching it from the environment in the container
-    if [ -z "$DATABASE_URL" ]; then
-      # Find the first pod for the app in the specified namespace
-      POD_NAME=$(kubectl get pods -n "$NAMESPACE" -l app="$APP_NAME" -o jsonpath="{.items[0].metadata.name}")
+  # If DATABASE_URL is not found, try to get individual PG variables
+  if [ -z "$DATABASE_URL" ]; then
+    # Retrieve individual PostgreSQL environment variables
+    PGDATABASE=$(kubectl get secret "$APP_NAME" -n "$NAMESPACE" -o jsonpath="{.data.PGDATABASE}" 2>/dev/null | base64 --decode)
+    PGHOST=$(kubectl get secret "$APP_NAME" -n "$NAMESPACE" -o jsonpath="{.data.PGHOST}" 2>/dev/null | base64 --decode)
+    PGPASSWORD=$(kubectl get secret "$APP_NAME" -n "$NAMESPACE" -o jsonpath="{.data.PGPASSWORD}" 2>/dev/null | base64 --decode)
+    PGPORT=$(kubectl get secret "$APP_NAME" -n "$NAMESPACE" -o jsonpath="{.data.PGPORT}" 2>/dev/null | base64 --decode)
+    PGUSER=$(kubectl get secret "$APP_NAME" -n "$NAMESPACE" -o jsonpath="{.data.PGUSER}" 2>/dev/null | base64 --decode)
+  fi
 
-      echo "Fetching DATABASE_URL from environment within pod $POD_NAME..."
-      DATABASE_URL=$(kubectl exec "$POD_NAME" -n "$NAMESPACE" -- printenv DATABASE_URL)
-
-      if [ -z "$DATABASE_URL" ]; then
-        echo "Error: DATABASE_URL not found in either secrets or container environment."
-        exit 1
-      fi
-    fi
-
-    echo "Database URL: ${DATABASE_URL}"
-    
-    # Login into the postgresql
-    
-    kubectl exec -it "$POD_NAME" -n "$NAMESPACE" --     env DATABASE_URL="$DATABASE_URL" psql "$DATABASE_URL"
-
+  # Check if we have sufficient credentials to log in
+  if [ -n "$DATABASE_URL" ]; then
+    echo "Connecting using DATABASE_URL..."
+    kubectl exec -it "$POD_NAME" -n "$NAMESPACE" -- env DATABASE_URL="$DATABASE_URL" psql "$DATABASE_URL"
+  elif [ -n "$PGDATABASE" ] && [ -n "$PGHOST" ] && [ -n "$PGPASSWORD" ] && [ -n "$PGPORT" ] && [ -n "$PGUSER" ]; then
+    echo "Connecting using individual PostgreSQL environment variables..."
+    kubectl exec -it "$POD_NAME" -n "$NAMESPACE" -- env PGDATABASE="$PGDATABASE" PGHOST="$PGHOST" PGPASSWORD="$PGPASSWORD" PGPORT="$PGPORT" PGUSER="$PGUSER" psql -h "$PGHOST" -U "$PGUSER" -d "$PGDATABASE" -p "$PGPORT"
+  else
+    echo "Error: Required database credentials are not found in secrets or environment variables."
+    exit 1
+  fi
   ;;
 
   *)
