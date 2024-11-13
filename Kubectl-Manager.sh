@@ -57,6 +57,13 @@ if [[ "$1" == "--help" ]]; then
   usage
 fi
 
+# Check if kubectl is installed
+if ! command -v kubectl &> /dev/null; then
+  echo "Error: kubectl is not installed. Please install kubectl and try again."
+  exit 1
+fi
+
+
 # Parse command-line options
 while getopts ":a:n:m:e:v:" opt; do
   case $opt in
