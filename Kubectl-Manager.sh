@@ -139,7 +139,7 @@ fi
 APP_LABEL="app=${APP_NAME}"
 
 # Get the pod name for the app
-POD_NAME=$(kubectl get pods -n "$NAMESPACE" -l "$APP_LABEL" -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)
+POD_NAME=$(kubectl get pods -n "$NAMESPACE" -l "$APP_LABEL" --field-selector=status.phase=Running -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)
 
 # Check if a pod was found
 if [ -z "$POD_NAME" ]; then
