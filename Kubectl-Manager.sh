@@ -48,7 +48,9 @@ usage() {
   echo
   echo "  7. Verify Env:"
   echo "     $0 -m verify-env"
- 
+  echo
+  echo "  8. List all the Applications:"
+  echo "     $0 -m get-apps"
   exit 1
 }
 
@@ -122,6 +124,23 @@ case $MODE in
     verify-env
     exit 0
     ;;
+  
+  get-apps)
+    echo "Fetching all the apps deployed."
+
+    # Step 1: Use git to get the branch name that contains the HEAD
+    Deployed_apps=$(kubectl get deployment)
+
+    if [ -z "$Deployed_apps" ]; then
+      echo "Error: Could not find the branch containing the current HEAD commit."
+      exit 1
+    fi
+    
+    echo "Deployed Apps: "
+    echo "$Deployed_apps"
+    exit 0
+    ;;
+
 esac
 
 # Validate required arguments (skip if switch-env is selected)
@@ -130,7 +149,7 @@ if [ "$MODE" != "switch-env" ] && ([ -z "$APP_NAME" ] || [ -z "$MODE" ]); then
 fi
 
 # Validate mode (bash, rails, get-env, set-env, get-secret)
-if [ "$MODE" != "bash" ] && [ "$MODE" != "rails" ] && [ "$MODE" != "get-secret" ] && [ "$MODE" != "set-secret" ] && [ "$MODE" != "switch-env" ] && [ "$MODE" != "get-branch" ] && [ "$MODE" != "verify-env" ] && [ "$MODE" != "postgres-login" ]; then
+if [ "$MODE" != "bash" ] && [ "$MODE" != "rails" ] && [ "$MODE" != "get-secret" ] && [ "$MODE" != "set-secret" ] && [ "$MODE" != "switch-env" ] && [ "$MODE" != "get-branch" ] && [ "$MODE" != "verify-env" ] && [ "$MODE" != "postgres-login" ] && [ "$MODE" != "get-apps" ]; then
   echo "Error: Invalid mode '$MODE'. Valid modes are 'bash', 'rails', 'get-env', 'set-env', 'get-secret', or 'switch-env'."
   usage
 fi
