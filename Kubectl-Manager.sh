@@ -191,7 +191,7 @@ case $MODE in
       usage
     fi
     echo "Fetching environment variable '$ENV_VAR' from secret '$APP_NAME' in namespace $NAMESPACE..."
-    kubectl get secret "$APP_NAME" -n "$NAMESPACE" -o go-template='{{ range $key, $value := .data }}{{ printf "%s=%s\n" $key (printf "%s" $value | base64decode) }}{{ end }}' | grep "$ENV_VAR"
+    kubectl get secret "$APP_NAME" -n "$NAMESPACE" -o go-template='{{ range $key, $value := .data }}{{ printf "%s=%s\n" $key (printf "%s" $value | base64decode) }}{{ end }}' | grep -i "$ENV_VAR"
     ;;
     
   set-secret)
